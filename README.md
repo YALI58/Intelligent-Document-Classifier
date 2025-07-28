@@ -38,7 +38,7 @@
 ## 🚀 快速开始
 
 ### 下载可执行文件（推荐）
-1. 前往 [Releases](https://github.com/yourusername/智能文件分类器/releases) 页面
+1. 前往 [Releases](https://github.com/YALI58/智能文件分类器/releases) 页面
 2. 下载适合您操作系统的可执行文件
 3. 双击运行即可使用（无需安装Python或依赖）
 

@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 echo 正在构建智能文件分类器可执行文件...
 python build_executable.py
 if %ERRORLEVEL% NEQ 0 (
