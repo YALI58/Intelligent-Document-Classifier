@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
 
+# 添加必要的权限
+permissions:
+  contents: write
+  actions: read
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -92,9 +97,14 @@ jobs:
         with:
           name: macos-executable
           path: macos
+      - name: Verify artifacts
+        run: |
+          echo "Verifying downloaded artifacts..."
+          ls -la windows/
+          ls -la linux/
+          ls -la macos/
       - name: Create Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             windows/FileClassifier.exe
@@ -113,3 +123,5 @@ jobs:
             2. 双击运行（Linux/macOS用户可能需要先添加执行权限：`chmod +x FileClassifier`）
             
             详细使用说明请参考程序内的帮助菜单。
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
