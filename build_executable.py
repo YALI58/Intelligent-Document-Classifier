@@ -31,7 +31,7 @@ def build_executable():
     # 构建命令
     cmd = [
         sys.executable, "-m", "PyInstaller",
-        "--name=智能文件分类器",
+        "--name=FileClassifier",
         "--onefile",
         "--windowed",
         "--clean",
@@ -53,7 +53,7 @@ def build_executable():
         os.makedirs(release_dir)
     
     # 复制可执行文件到发布目录
-    exe_name = "智能文件分类器.exe" if system == "windows" else "智能文件分类器"
+    exe_name = "FileClassifier.exe" if system == "windows" else "FileClassifier"
     exe_path = os.path.join("dist", exe_name)
     
     if os.path.exists(exe_path):
@@ -65,7 +65,7 @@ def build_executable():
             f.write("===================\n\n")
             f.write("安装说明：\n")
             f.write("1. 解压本压缩包到任意位置\n")
-            f.write("2. 双击运行「智能文件分类器」可执行文件\n")
+            f.write("2. 双击运行「FileClassifier」可执行文件\n")
             f.write("3. 首次运行时可能需要允许系统权限\n\n")
             f.write("使用说明请参考程序内的「帮助」菜单或随附的使用指南文档。\n")
         

@@ -21,12 +21,12 @@ jobs:
           pip install pyinstaller
       - name: Build executable
         run: |
-          pyinstaller --name="智能文件分类器" --onefile --windowed --clean --add-data="README.md;." --add-data="使用指南.md;." main.py
+          pyinstaller --name="FileClassifier" --onefile --windowed --clean --add-data="README.md;." --add-data="使用指南.md;." main.py
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-executable
-          path: dist/智能文件分类器.exe
+          path: dist/FileClassifier.exe
 
   build-linux:
     runs-on: ubuntu-latest
@@ -43,12 +43,12 @@ jobs:
           pip install pyinstaller
       - name: Build executable
         run: |
-          pyinstaller --name="智能文件分类器" --onefile --clean --add-data="README.md:." --add-data="使用指南.md:." main.py
+          pyinstaller --name="FileClassifier" --onefile --clean --add-data="README.md:." --add-data="使用指南.md:." main.py
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-executable
-          path: dist/智能文件分类器
+          path: dist/FileClassifier
 
   build-macos:
     runs-on: macos-latest
@@ -65,12 +65,12 @@ jobs:
           pip install pyinstaller
       - name: Build executable
         run: |
-          pyinstaller --name="智能文件分类器" --onefile --windowed --clean --add-data="README.md:." --add-data="使用指南.md:." main.py
+          pyinstaller --name="FileClassifier" --onefile --windowed --clean --add-data="README.md:." --add-data="使用指南.md:." main.py
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: macos-executable
-          path: dist/智能文件分类器
+          path: dist/FileClassifier
 
   create-release:
     needs: [build-windows, build-linux, build-macos]
@@ -97,19 +97,19 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            windows/智能文件分类器.exe
-            linux/智能文件分类器
-            macos/智能文件分类器
+            windows/FileClassifier.exe
+            linux/FileClassifier
+            macos/FileClassifier
           body: |
             # 智能文件分类器 ${{ github.ref_name }}
             
             ## 下载
-            - [Windows 版本](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/智能文件分类器.exe)
-            - [Linux 版本](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/智能文件分类器)
-            - [macOS 版本](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/智能文件分类器)
+            - [Windows 版本](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/FileClassifier.exe)
+            - [Linux 版本](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/FileClassifier)
+            - [macOS 版本](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/FileClassifier)
             
             ## 安装说明
             1. 下载对应您操作系统的可执行文件
-            2. 双击运行（Linux/macOS用户可能需要先添加执行权限：`chmod +x 智能文件分类器`）
+            2. 双击运行（Linux/macOS用户可能需要先添加执行权限：`chmod +x FileClassifier`）
             
             详细使用说明请参考程序内的帮助菜单。
