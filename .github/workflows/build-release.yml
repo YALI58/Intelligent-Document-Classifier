@@ -104,12 +104,13 @@ jobs:
           ls -la linux/
           ls -la macos/
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: |
-            windows/FileClassifier.exe
-            linux/FileClassifier
-            macos/FileClassifier
+          tag_name: ${{ github.ref }}
+          release_name: 智能文件分类器 ${{ github.ref_name }}
           body: |
             # 智能文件分类器 ${{ github.ref_name }}
             
@@ -123,5 +124,32 @@ jobs:
             2. 双击运行（Linux/macOS用户可能需要先添加执行权限：`chmod +x FileClassifier`）
             
             详细使用说明请参考程序内的帮助菜单。
+          draft: false
+          prerelease: false
+      - name: Upload Windows Release Asset
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./windows/FileClassifier.exe
+          asset_name: FileClassifier.exe
+          asset_content_type: application/octet-stream
+      - name: Upload Linux Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./linux/FileClassifier
+          asset_name: FileClassifier
+          asset_content_type: application/octet-stream
+      - name: Upload macOS Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./macos/FileClassifier
+          asset_name: FileClassifier
+          asset_content_type: application/octet-stream
