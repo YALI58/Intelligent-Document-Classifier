@@ -165,6 +165,31 @@ class SettingsDialog:
         frame = ttk.Frame(notebook)
         notebook.add(frame, text="高级设置")
         
+        # 标志文件设置
+        flag_frame = ttk.LabelFrame(frame, text="标志文件设置", padding="10")
+        flag_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # 启用标志文件
+        self.respect_flag_file = tk.BooleanVar(value=True)
+        ttk.Checkbutton(flag_frame, text="启用标志文件功能", 
+                       variable=self.respect_flag_file).pack(anchor=tk.W)
+        
+        # 标志文件名称
+        flag_name_frame = ttk.Frame(flag_frame)
+        flag_name_frame.pack(fill=tk.X, pady=(5, 0))
+        ttk.Label(flag_name_frame, text="标志文件名称:").pack(side=tk.LEFT)
+        self.flag_file_name = tk.StringVar(value=".noclassify")
+        flag_entry = ttk.Entry(flag_name_frame, textvariable=self.flag_file_name)
+        flag_entry.pack(side=tk.LEFT, padx=(5, 0))
+        
+        # 说明文本
+        info_text = """当文件夹中存在标志文件时，该文件夹及其子文件夹将被跳过不进行分类。
+这对于保持某些特定文件夹的结构很有用，比如软件安装目录、项目文件夹等。
+您可以通过在文件夹中创建一个名为".noclassify"（或自定义名称）的空文件来标记该文件夹。"""
+        info_label = ttk.Label(flag_frame, text=info_text, wraplength=600, 
+                             justify=tk.LEFT, foreground="gray")
+        info_label.pack(anchor=tk.W, pady=(5, 0))
+        
         # 重复文件处理
         duplicate_frame = ttk.LabelFrame(frame, text="重复文件处理", padding=10)
         duplicate_frame.pack(fill=tk.X, padx=10, pady=5)
@@ -293,6 +318,14 @@ class SettingsDialog:
         """加载当前设置"""
         config = self.config_manager.load_config()
         
+        # 加载标志文件设置
+        flag_file_config = config.get('flag_file', {
+            'enabled': True,
+            'name': '.noclassify'
+        })
+        self.respect_flag_file.set(flag_file_config.get('enabled', True))
+        self.flag_file_name.set(flag_file_config.get('name', '.noclassify'))
+        
         # 加载文件类型映射
         self.file_type_mapping = config.get('file_type_mapping', {})
         self.populate_file_type_mapping()
@@ -406,6 +439,12 @@ class SettingsDialog:
         """保存设置"""
         try:
             config = self.config_manager.load_config()
+            
+            # 保存标志文件设置
+            config['flag_file'] = {
+                'enabled': self.respect_flag_file.get(),
+                'name': self.flag_file_name.get()
+            }
             
             # 保存文件类型映射
             new_mapping = {}

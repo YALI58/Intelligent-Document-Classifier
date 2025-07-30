@@ -22,6 +22,10 @@ class EnhancedFileClassifier:
         self.max_history = 50
         self.history_file = Path.home() / '.file_classifier_history.json'
         
+        # 标志文件配置
+        self.flag_file_name = '.noclassify'  # 默认标志文件名
+        self.respect_flag_file = True        # 是否遵循标志文件
+        
         # 文件关联规则
         self.association_rules = {
             # 程序文件关联
@@ -506,14 +510,39 @@ class EnhancedFileClassifier:
         return results
     
     # 继承原有的方法
+    def _should_skip_directory(self, dir_path: Path) -> bool:
+        """检查目录是否应该被跳过（存在标志文件）"""
+        if not self.respect_flag_file:
+            return False
+        
+        flag_file_path = dir_path / self.flag_file_name
+        return flag_file_path.exists()
+    
     def _get_files_from_source(self, source_path: Path) -> List[Path]:
-        """从源路径获取所有文件"""
+        """从源路径获取所有文件，跳过带有标志文件的目录"""
         files = []
         try:
             if source_path.is_file():
                 files.append(source_path)
             elif source_path.is_dir():
-                files = [f for f in source_path.rglob('*') if f.is_file()]
+                # 如果根目录有标志文件，直接返回空列表
+                if self._should_skip_directory(source_path):
+                    return []
+                
+                # 遍历目录
+                for root, dirs, filenames in os.walk(source_path):
+                    root_path = Path(root)
+                    
+                    # 检查当前目录是否有标志文件
+                    if self._should_skip_directory(root_path):
+                        # 从dirs中移除所有子目录，这样os.walk就不会继续遍历它们
+                        dirs.clear()
+                        continue
+                    
+                    # 添加当前目录中的文件
+                    for filename in filenames:
+                        if filename != self.flag_file_name:  # 不包含标志文件本身
+                            files.append(root_path / filename)
         except PermissionError:
             pass
         return files

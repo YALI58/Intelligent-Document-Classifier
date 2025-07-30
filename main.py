@@ -30,7 +30,14 @@ class FileClassifierApp:
         
         # 初始化组件
         self.config_manager = ConfigManager()
-        self.classifier = FileClassifier()
+        
+        # 尝试使用增强版分类器
+        try:
+            from file_classifier_enhanced import EnhancedFileClassifier
+            self.classifier = EnhancedFileClassifier()
+        except ImportError:
+            self.classifier = FileClassifier()
+            
         self.file_monitor = None
         
         # 状态变量
@@ -942,6 +949,15 @@ class FileClassifierApp:
         """加载配置"""
         config = self.config_manager.load_config()
         
+        # 加载标志文件设置
+        if hasattr(self.classifier, 'respect_flag_file'):
+            flag_file_config = config.get('flag_file', {
+                'enabled': True,
+                'name': '.noclassify'
+            })
+            self.classifier.respect_flag_file = flag_file_config.get('enabled', True)
+            self.classifier.flag_file_name = flag_file_config.get('name', '.noclassify')
+        
         # 设置路径
         self.source_var.set(config.get('source_path', ''))
         self.target_var.set(config.get('target_path', ''))
@@ -966,6 +982,13 @@ class FileClassifierApp:
     def save_config(self):
         """保存配置"""
         config = self.config_manager.load_config()
+        
+        # 保存标志文件设置
+        if hasattr(self.classifier, 'respect_flag_file'):
+            config['flag_file'] = {
+                'enabled': self.classifier.respect_flag_file,
+                'name': self.classifier.flag_file_name
+            }
         
         # 更新配置
         config['source_path'] = self.source_var.get()
