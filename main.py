@@ -19,6 +19,14 @@ from file_classifier import FileClassifier
 from config_manager import ConfigManager
 from file_monitor import FileMonitor
 
+# 智能推荐相关导入
+try:
+    from recommendations_dialog import show_recommendations_dialog
+    RECOMMENDATIONS_AVAILABLE = True
+except ImportError:
+    RECOMMENDATIONS_AVAILABLE = False
+    print("智能推荐模块不可用，请检查依赖是否正确安装")
+
 class FileClassifierApp:
     """文件分类器主应用程序"""
     
@@ -253,12 +261,29 @@ class FileClassifierApp:
         ttk.Button(aux_buttons, text="高级设置", 
                   command=self.open_settings_dialog).grid(row=0, column=0, padx=5)
         
-        self.undo_btn = ttk.Button(aux_buttons, text="撤销操作", 
-                                  command=self.undo_last_operation)
-        self.undo_btn.grid(row=0, column=1, padx=5)
+        # 多层级分类设置按钮
+        ttk.Button(aux_buttons, text="📊 分类设置", 
+                  command=self.open_hierarchical_settings).grid(row=0, column=1, padx=5)
         
-        ttk.Button(aux_buttons, text="清空结果", 
-                  command=self.clear_results).grid(row=0, column=2, padx=5)
+        # 智能推荐按钮
+        if RECOMMENDATIONS_AVAILABLE:
+            self.ai_recommend_btn = ttk.Button(aux_buttons, text="🤖 智能推荐", 
+                                              command=self.open_recommendations_dialog)
+            self.ai_recommend_btn.grid(row=0, column=2, padx=5)
+            
+            self.undo_btn = ttk.Button(aux_buttons, text="撤销操作", 
+                                      command=self.undo_last_operation)
+            self.undo_btn.grid(row=0, column=3, padx=5)
+            
+            ttk.Button(aux_buttons, text="清空结果", 
+                      command=self.clear_results).grid(row=0, column=4, padx=5)
+        else:
+            self.undo_btn = ttk.Button(aux_buttons, text="撤销操作", 
+                                      command=self.undo_last_operation)
+            self.undo_btn.grid(row=0, column=2, padx=5)
+            
+            ttk.Button(aux_buttons, text="清空结果", 
+                      command=self.clear_results).grid(row=0, column=3, padx=5)
         
     def create_results_section(self, parent):
         """创建结果显示区域"""
@@ -579,16 +604,14 @@ class FileClassifierApp:
             # 执行分类 - 使用增强版分类器或原版分类器
             if self.preserve_associations.get():
                 # 使用增强版分类器
-                try:
-                    from file_classifier_enhanced import EnhancedFileClassifier
-                    enhanced_classifier = EnhancedFileClassifier()
-                    results = enhanced_classifier.classify_files_with_associations(
+                if hasattr(self.classifier, 'classify_files_with_associations'):
+                    results = self.classifier.classify_files_with_associations(
                         source_path, target_path, enabled_rules, operation,
                         enabled_custom_rules, type_mapping, preserve_associations=True
                     )
                     self.message_queue.put(('status', '正在分析文件关联关系...'))
-                except ImportError:
-                    # 如果增强版分类器不可用，回退到原版
+                else:
+                    # 如果当前分类器不支持关联功能，回退到标准分类
                     self.message_queue.put(('status', '增强功能不可用，使用标准分类...'))
                     results = self.classifier.classify_files(
                         source_path, target_path, enabled_rules, operation,
@@ -642,18 +665,16 @@ class FileClassifierApp:
             
             # 生成预览 - 使用增强版或原版分类器
             if self.preserve_associations.get():
-                try:
-                    from file_classifier_enhanced import EnhancedFileClassifier
-                    enhanced_classifier = EnhancedFileClassifier()
+                if hasattr(self.classifier, 'classify_files_with_associations'):
                     # 增强版分类器暂时使用复制模式生成预览
-                    preview_results = enhanced_classifier.classify_files_with_associations(
+                    preview_results = self.classifier.classify_files_with_associations(
                         source_path, target_path, enabled_rules, 'copy',
                         enabled_custom_rules, type_mapping, preserve_associations=True
                     )
                     # 将结果标记为预览模式
                     for result in preview_results:
                         result['preview_mode'] = True
-                except ImportError:
+                else:
                     # 回退到原版分类器
                     preview_results = self.classifier.preview_classification(
                         source_path, target_path, enabled_rules, 
@@ -932,6 +953,42 @@ class FileClassifierApp:
             self.load_config()
         except ImportError:
             messagebox.showinfo("提示", "设置功能正在开发中...")
+    
+    def open_recommendations_dialog(self):
+        """打开智能推荐对话框"""
+        if not RECOMMENDATIONS_AVAILABLE:
+            messagebox.showinfo("提示", "智能推荐功能不可用，请检查依赖是否正确安装")
+            return
+            
+        source_path = self.source_var.get().strip()
+        if not source_path:
+            # 如果没有设置源路径，提示用户选择
+            result = messagebox.askyesno("选择目录", 
+                                       "未设置源文件夹。是否选择一个目录进行智能分析？")
+            if result:
+                folder = filedialog.askdirectory(title="选择要分析的目录")
+                if folder:
+                    source_path = folder
+                else:
+                    return
+            else:
+                return
+        
+        try:
+            # 打开智能推荐对话框
+            show_recommendations_dialog(self.root, source_path)
+        except Exception as e:
+            messagebox.showerror("错误", f"打开智能推荐失败: {str(e)}")
+    
+    def open_hierarchical_settings(self):
+        """打开多层级分类设置对话框"""
+        try:
+            from hierarchical_settings_dialog import show_hierarchical_settings_dialog
+            show_hierarchical_settings_dialog(self.root, self.config_manager)
+        except ImportError:
+            messagebox.showinfo("提示", "多层级分类设置功能不可用")
+        except Exception as e:
+            messagebox.showerror("错误", f"打开分类设置失败: {str(e)}")
             
     def undo_last_operation(self):
         """撤销上次操作"""
@@ -1044,11 +1101,13 @@ def main():
     """主函数"""
     root = tk.Tk()
     
-    # 设置应用图标（如果有的话）
-    # try:
-    #     root.iconbitmap('icon.ico')
-    # except:
-    #     pass
+    # 设置应用图标
+    try:
+        icon_path = os.path.join('resources', 'icon.ico')
+        if os.path.exists(icon_path):
+            root.iconbitmap(icon_path)
+    except Exception as e:
+        print(f"设置图标失败: {e}")
     
     app = FileClassifierApp(root)
     

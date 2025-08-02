@@ -9,16 +9,17 @@ import os
 import time
 import threading
 from pathlib import Path
-from typing import List, Callable, Dict, Any, Optional
+from typing import List, Callable, Dict, Any, Optional, Set
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent, FileMovedEvent
+from concurrent.futures import ThreadPoolExecutor
 
 class FileClassifierHandler(FileSystemEventHandler):
-    """文件分类事件处理器"""
+    """优化后的文件分类事件处理器"""
     
     def __init__(self, classifier, target_path: str, rules: List[str], 
                  operation: str, callback: Callable, config_manager,
-                 delay: float = 1.0):
+                 delay: float = 1.0, batch_size: int = 10):
         self.classifier = classifier
         self.target_path = target_path
         self.rules = rules
@@ -26,30 +27,35 @@ class FileClassifierHandler(FileSystemEventHandler):
         self.callback = callback
         self.config_manager = config_manager
         self.delay = delay
+        self.batch_size = batch_size
         
-        # 防止重复处理的文件集合
-        self.processing_files = set()
-        self.processed_files = set()
+        # 使用集合提高查找性能
+        self.processing_files: Set[str] = set()
+        self.processed_files: Set[str] = set()
         
-        # 延迟处理队列
-        self.pending_files = {}
-        self.timer_lock = threading.Lock()
+        # 批量处理队列
+        self.batch_queue: List[str] = []
+        self.batch_lock = threading.Lock()
+        self.batch_timer = None
+        
+        # 线程池用于并行处理
+        self.executor = ThreadPoolExecutor(max_workers=4)
         
     def on_created(self, event):
         """文件创建事件"""
         if not event.is_directory:
-            self._schedule_file_processing(event.src_path)
+            self._add_to_batch_queue(event.src_path)
             
     def on_moved(self, event):
         """文件移动事件"""
         if not event.is_directory:
-            self._schedule_file_processing(event.dest_path)
+            self._add_to_batch_queue(event.dest_path)
             
-    def _schedule_file_processing(self, file_path: str):
-        """调度文件处理（延迟执行）"""
+    def _add_to_batch_queue(self, file_path: str):
+        """添加到批量处理队列"""
         file_path = str(Path(file_path).resolve())
         
-        # 检查文件是否应该被排除
+        # 检查排除规则
         if self._should_exclude_file(file_path):
             return
             
@@ -57,87 +63,85 @@ class FileClassifierHandler(FileSystemEventHandler):
         if file_path in self.processing_files or file_path in self.processed_files:
             return
             
-        with self.timer_lock:
-            # 取消之前的定时器（如果存在）
-            if file_path in self.pending_files:
-                self.pending_files[file_path].cancel()
+        with self.batch_lock:
+            self.batch_queue.append(file_path)
+            
+            # 达到批量大小立即处理
+            if len(self.batch_queue) >= self.batch_size:
+                self._process_batch()
+            elif not self.batch_timer:
+                # 设置延迟处理定时器
+                self.batch_timer = threading.Timer(
+                    self.delay, 
+                    self._process_batch
+                )
+                self.batch_timer.start()
                 
-            # 创建新的定时器
-            timer = threading.Timer(self.delay, self._process_file, args=[file_path])
-            self.pending_files[file_path] = timer
-            timer.start()
+    def _process_batch(self):
+        """处理批量文件"""
+        with self.batch_lock:
+            if not self.batch_queue:
+                return
+                
+            # 获取当前批次并清空队列
+            current_batch = self.batch_queue.copy()
+            self.batch_queue.clear()
             
-    def _should_exclude_file(self, file_path: str) -> bool:
-        """检查文件是否应该被排除"""
-        try:
-            file_path = Path(file_path)
-            filename = file_path.name.lower()
+            # 重置定时器
+            if self.batch_timer:
+                self.batch_timer.cancel()
+                self.batch_timer = None
+        
+        # 标记为处理中
+        self.processing_files.update(current_batch)
+        
+        # 并行处理批量文件
+        futures = []
+        for file_path in current_batch:
+            futures.append(self.executor.submit(
+                self._process_single_file,
+                file_path
+            ))
             
-            # 获取排除模式
-            exclude_patterns = self.config_manager.get_setting('exclude_patterns', [])
-            
-            # 检查排除模式
-            import fnmatch
-            for pattern in exclude_patterns:
-                if fnmatch.fnmatch(filename, pattern.lower()):
-                    return True
-                    
-            # 检查文件大小限制
+        # 等待所有任务完成
+        for future in futures:
             try:
-                file_size = file_path.stat().st_size
-                min_size = self.config_manager.get_setting('min_file_size', 0)
-                max_size = self.config_manager.get_setting('max_file_size', 1024*1024*1024)
-                
-                if file_size < min_size or file_size > max_size:
-                    return True
-            except (OSError, FileNotFoundError):
-                return True
-                
-            return False
-            
-        except Exception:
-            return True
-            
-    def _process_file(self, file_path: str):
+                future.result()
+            except Exception as e:
+                print(f"文件处理失败: {e}")
+        
+        # 标记为已处理
+        self.processed_files.update(current_batch)
+        self.processing_files.difference_update(current_batch)
+        
+    def _process_single_file(self, file_path: str):
         """处理单个文件"""
         try:
             file_path = Path(file_path)
             
-            # 标记为正在处理
-            self.processing_files.add(str(file_path))
-            
-            # 从待处理队列中移除
-            with self.timer_lock:
-                self.pending_files.pop(str(file_path), None)
-                
-            # 等待文件稳定
-            if not self._wait_for_file_stable(file_path):
+            # 优化后的文件稳定性检测
+            if not self._wait_for_file_stable_optimized(file_path):
                 return
                 
             # 获取配置
             custom_rules = self.config_manager.get_custom_rules()
             type_mapping = self.config_manager.get_file_type_mapping()
             
-            # 过滤启用的自定义规则
-            enabled_custom_rules = [rule for rule in custom_rules if rule.get('enabled', True)]
-            
             # 分类文件
             result = self.classifier.classify_single_file(
                 str(file_path), self.target_path, self.rules, self.operation,
-                enabled_custom_rules, type_mapping
+                [rule for rule in custom_rules if rule.get('enabled', True)],
+                type_mapping
             )
             
-            # 添加额外信息
+            # 添加监控处理标记
             result['monitor_processed'] = True
             result['processing_time'] = time.time()
             
-            # 通知回调
+            # 回调通知
             if self.callback:
                 self.callback(result)
                 
-            # 标记为已处理
-            self.processed_files.add(str(file_path))
-            
         except Exception as e:
             error_result = {
                 'filename': file_path.name if hasattr(file_path, 'name') else '未知',
@@ -151,51 +155,51 @@ class FileClassifierHandler(FileSystemEventHandler):
             }
             if self.callback:
                 self.callback(error_result)
-        finally:
-            # 移除处理标记
-            self.processing_files.discard(str(file_path))
-            
-    def _wait_for_file_stable(self, file_path: Path, timeout: int = 10) -> bool:
-        """等待文件稳定（完全写入）"""
+    
+    def _wait_for_file_stable_optimized(self, file_path: Path, timeout: int = 10) -> bool:
+        """优化后的文件稳定性检测"""
         if not file_path.exists():
             return False
             
-        last_size = -1
-        stable_count = 0
-        start_time = time.time()
-        
-        while time.time() - start_time < timeout:
-            try:
-                current_size = file_path.stat().st_size
-                if current_size == last_size:
-                    stable_count += 1
-                    if stable_count >= 3:  # 连续3次大小不变认为稳定
-                        # 额外检查文件是否可读
-                        try:
-                            with open(file_path, 'rb') as f:
-                                f.read(1)
-                            return True
-                        except (PermissionError, IOError):
-                            # 文件可能仍在被写入
-                            pass
-                else:
-                    stable_count = 0
-                    last_size = current_size
+        try:
+            # 初始状态
+            last_size = -1
+            last_mtime = 0
+            stable_checks = 0
+            start_time = time.time()
+            
+            while time.time() - start_time < timeout:
+                try:
+                    stat = file_path.stat()
+                    current_size = stat.st_size
+                    current_mtime = stat.st_mtime
                     
-                time.sleep(0.5)
-            except (OSError, FileNotFoundError):
-                # 文件可能被删除或无法访问
-                return False
-                
-        return False
-        
+                    # 检查大小和修改时间是否稳定
+                    if current_size == last_size and current_mtime == last_mtime:
+                        stable_checks += 1
+                        if stable_checks >= 2:  # 连续2次检测稳定
+                            return True
+                    else:
+                        stable_checks = 0
+                        last_size = current_size
+                        last_mtime = current_mtime
+                        
+                    time.sleep(0.3)  # 适当缩短检测间隔
+                except (OSError, FileNotFoundError):
+                    return False
+                    
+            return False
+        except Exception:
+            return False
+            
     def cleanup(self):
         """清理资源"""
-        with self.timer_lock:
-            # 取消所有待处理的定时器
-            for timer in self.pending_files.values():
-                timer.cancel()
-            self.pending_files.clear()
+        with self.batch_lock:
+            if self.batch_timer:
+                self.batch_timer.cancel()
+            self.batch_queue.clear()
+        
+        self.executor.shutdown(wait=False)
 
 class FileMonitor:
     """文件监控器主类"""
@@ -367,7 +371,7 @@ class FileMonitor:
     def get_pending_files_count(self) -> int:
         """获取待处理文件数量"""
         if self.handler:
-            return len(self.handler.pending_files)
+            return len(self.handler.batch_queue) # Changed from pending_files to batch_queue
         return 0
         
     def get_processing_files_count(self) -> int:

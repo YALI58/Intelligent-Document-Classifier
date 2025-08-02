@@ -5,7 +5,7 @@ on:
     tags:
       - 'v*'
 
-# 添加必要的权限
+# Add necessary permissions
 permissions:
   contents: write
   actions: read
@@ -26,12 +26,12 @@ jobs:
           pip install pyinstaller
       - name: Build executable
         run: |
-          pyinstaller --name="FileClassifier" --onefile --windowed --clean --add-data="README.md;." --add-data="使用指南.md;." main.py
+          pyinstaller --name="IntelligentFileClassifier" --onefile --windowed --clean --add-data="README.md;." --add-data="USER_GUIDE.md;." main.py
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-executable
-          path: dist/FileClassifier.exe
+          path: dist/IntelligentFileClassifier.exe
 
   build-linux:
     runs-on: ubuntu-latest
@@ -48,12 +48,12 @@ jobs:
           pip install pyinstaller
       - name: Build executable
         run: |
-          pyinstaller --name="FileClassifier" --onefile --clean --add-data="README.md:." --add-data="使用指南.md:." main.py
+          pyinstaller --name="IntelligentFileClassifier" --onefile --clean --add-data="README.md:." --add-data="USER_GUIDE.md:." main.py
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-executable
-          path: dist/FileClassifier
+          path: dist/IntelligentFileClassifier
 
   build-macos:
     runs-on: macos-latest
@@ -70,12 +70,12 @@ jobs:
           pip install pyinstaller
       - name: Build executable
         run: |
-          pyinstaller --name="FileClassifier" --onefile --windowed --clean --add-data="README.md:." --add-data="使用指南.md:." main.py
+          pyinstaller --name="IntelligentFileClassifier" --onefile --windowed --clean --add-data="README.md:." --add-data="USER_GUIDE.md:." main.py
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: macos-executable
-          path: dist/FileClassifier
+          path: dist/IntelligentFileClassifier
 
   create-release:
     needs: [build-windows, build-linux, build-macos]
@@ -105,51 +105,45 @@ jobs:
           ls -la macos/
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: 智能文件分类器 ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          name: Intelligent File Classifier ${{ github.ref_name }}
           body: |
-            # 智能文件分类器 ${{ github.ref_name }}
+            # Intelligent File Classifier ${{ github.ref_name }}
             
-            ## 下载
-            - [Windows 版本](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/FileClassifier.exe)
-            - [Linux 版本](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/FileClassifier)
-            - [macOS 版本](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/FileClassifier)
+            ## 🚀 New Release
             
-            ## 安装说明
-            1. 下载对应您操作系统的可执行文件
-            2. 双击运行（Linux/macOS用户可能需要先添加执行权限：`chmod +x FileClassifier`）
+            ### 📥 Download Links
+            - **Windows Version**: [IntelligentFileClassifier.exe](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/IntelligentFileClassifier.exe)
+            - **Linux Version**: [IntelligentFileClassifier](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/IntelligentFileClassifier-linux)
+            - **macOS Version**: [IntelligentFileClassifier](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/IntelligentFileClassifier-macos)
             
-            详细使用说明请参考程序内的帮助菜单。
+            ### 📖 Installation Instructions
+            1. Download the executable file for your operating system
+            2. **Windows**: Double-click to run directly
+            3. **Linux/macOS**: Add execute permission and run
+               ```bash
+               chmod +x IntelligentFileClassifier
+               ./IntelligentFileClassifier
+               ```
+            
+            ### 📚 User Guide
+            - For detailed usage instructions, see [Complete User Guide](https://github.com/${{ github.repository }}/blob/main/USER_GUIDE.md)
+            - Project homepage: [README](https://github.com/${{ github.repository }}/blob/main/README.md)
+            
+            ### ✨ Key Features
+            - 🤖 Intelligent file classification
+            - 🔗 File association detection
+            - 📊 Multi-level classification
+            - 🔄 Real-time monitoring
+            - 🤖 Smart recommendation system
+            - ↩️ Undo operations
           draft: false
           prerelease: false
-      - name: Upload Windows Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./windows/FileClassifier.exe
-          asset_name: FileClassifier.exe
-          asset_content_type: application/octet-stream
-      - name: Upload Linux Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./linux/FileClassifier
-          asset_name: FileClassifier
-          asset_content_type: application/octet-stream
-      - name: Upload macOS Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./macos/FileClassifier
-          asset_name: FileClassifier
-          asset_content_type: application/octet-stream
+          files: |
+            windows/IntelligentFileClassifier.exe
+            linux/IntelligentFileClassifier
+            macos/IntelligentFileClassifier
