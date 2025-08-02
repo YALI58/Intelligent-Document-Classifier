@@ -103,6 +103,13 @@ jobs:
           ls -la windows/
           ls -la linux/
           ls -la macos/
+          find . -name "IntelligentFileClassifier*"
+      - name: Move files to release directory
+        run: |
+          mkdir -p release
+          cp windows/IntelligentFileClassifier.exe release/IntelligentFileClassifier-windows.exe
+          cp linux/IntelligentFileClassifier release/IntelligentFileClassifier-linux
+          cp macos/IntelligentFileClassifier release/IntelligentFileClassifier-macos
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
@@ -117,17 +124,17 @@ jobs:
             ## 🚀 New Release
             
             ### 📥 Download Links
-            - **Windows Version**: [IntelligentFileClassifier.exe](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/IntelligentFileClassifier.exe)
-            - **Linux Version**: [IntelligentFileClassifier](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/IntelligentFileClassifier-linux)
-            - **macOS Version**: [IntelligentFileClassifier](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/IntelligentFileClassifier-macos)
+            - **Windows Version**: [IntelligentFileClassifier-windows.exe](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/IntelligentFileClassifier-windows.exe)
+            - **Linux Version**: [IntelligentFileClassifier-linux](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/IntelligentFileClassifier-linux)
+            - **macOS Version**: [IntelligentFileClassifier-macos](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/IntelligentFileClassifier-macos)
             
             ### 📖 Installation Instructions
             1. Download the executable file for your operating system
             2. **Windows**: Double-click to run directly
             3. **Linux/macOS**: Add execute permission and run
                ```bash
-               chmod +x IntelligentFileClassifier
-               ./IntelligentFileClassifier
+               chmod +x IntelligentFileClassifier-linux
+               ./IntelligentFileClassifier-linux
                ```
             
             ### 📚 User Guide
@@ -144,6 +151,6 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            windows/IntelligentFileClassifier.exe
-            linux/IntelligentFileClassifier
-            macos/IntelligentFileClassifier
+            release/IntelligentFileClassifier-windows.exe
+            release/IntelligentFileClassifier-linux
+            release/IntelligentFileClassifier-macos
